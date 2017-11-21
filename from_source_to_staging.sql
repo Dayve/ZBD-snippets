@@ -1,21 +1,9 @@
--- Jeśli po wykonaniu jakichś instrukcji insertowania danych nie widać zmian to jeszcze commit trzeba nakliknąć
+-- Pro tip: jeśli po wykonaniu jakichś instrukcji insertowania danych nie widać zmian to jeszcze commit trzeba nakliknąć
 
 -- Dostawcy - samo przepisanie nazw:
 INSERT INTO zbd_staging.dostawca (nazwa)
 SELECT nazwa
 FROM zbd_source.dostawca;
-
--- Działy - samo przepisanie nazw:
-INSERT INTO zbd_staging.dział (nazwa)
-SELECT nazwa
-FROM zbd_source.dzial;
-
---INSERT INTO zbd_staging.oddział (nazwa, substr(miejscowosc_przecinek_spacja, 1, length(miejscowosc_przecinek_spacja)-2), 'woj', 'ul num')
---SELECT nazwa, regexp_substr(adres, '(\w+),\s', 1, 1) as miejscowosc_przecinek_spacja, nazwa, nazwa
---FROM zbd_source.oddzial;
---select adres, substr(adres, 1, length(adres)-2) from zbd_source.oddzial;
---select 'ab, cd, ef', INSTR('ab, cd, ef', ', ', 1, 1) as pierwsze, INSTR('ab, cd, ef', ', ', 1, 2) as drugie from zbd_source.oddzial;
---select adres, SUBSTR(adres, INSTR(adres, ', ', 1, 2)+2, length(adres)-INSTR(adres, ', ', 1, 2)-1) as wynik from zbd_source.oddzial;
 
 --  Oddziały - rozdzielenie "miasto, ulica, województwo" na 3 kolumny:
 declare
@@ -24,16 +12,16 @@ declare
   l_wojewodztwo varchar(50);
 begin
   for wiersz in (select nazwa as nazwa_z_numerem_oddzialu, adres as pelny_adres from zbd_source.oddzial) loop
-    -- INSTR znajduje w stringu wystąpienie innego stringa, tutaj z "New York City, Holywood bl, woj. Śląskie" wyciągnie "New York City"
+    -- INSTR znajduje w stringu wystąpienie innego stringa, tutaj z "New York City, Holywood bl, woj. Śląskie" wyciągnie "New York City":
     l_miejscowosc := SUBSTR(wiersz.pelny_adres, 0, INSTR(wiersz.pelny_adres, ', ')-1);
     
     -- Substring od pierwszego (druga jedynka, pierwsza jedynka to indeks w stringu od którego zaczynamy szukać) wystąpienia ', '
-    -- o długości (a nie: do, bo drugi ostatni parametr SUBSTR to ilość znaków do wyciągnięcia, czyli pozycja drugiego ', ' minus pozycja pierwszego ', '
+    -- o długości (a nie do - ostatni parametr SUBSTR to ilość znaków do wyciągnięcia, czyli tutaj pozycja drugiego ', ' minus pozycja pierwszego ', ':
     l_ulica_i_numer := SUBSTR(wiersz.pelny_adres, INSTR(wiersz.pelny_adres, ', ', 1, 1)+2, INSTR(wiersz.pelny_adres, ', ', 1, 2)-INSTR(wiersz.pelny_adres, ', ', 1, 1)-2);
     
     l_wojewodztwo := SUBSTR(wiersz.pelny_adres, INSTR(wiersz.pelny_adres, ', ', 1, 2)+2, length(wiersz.pelny_adres)-INSTR(wiersz.pelny_adres, ', ', 1, 2)-1);
     
-    dbms_output.put_line(l_miejscowosc || '    ' || l_ulica_i_numer || '    ' || l_wojewodztwo);
+    --dbms_output.put_line(l_miejscowosc || '    ' || l_ulica_i_numer || '    ' || l_wojewodztwo);
     
     INSERT INTO zbd_staging.oddział (nazwa, miasto, województwo, ulica_i_numer)
     VALUES (wiersz.nazwa_z_numerem_oddzialu, l_miejscowosc, l_wojewodztwo, l_ulica_i_numer);
@@ -41,7 +29,8 @@ begin
   end loop;
 end;
 
--- Oracle PL SQL nie oferuje niczego co pozwalałoby odwzorować HashMap<String, ArrayList<String>>, pozostaje więc:
+-- Oracle PL/SQL nie oferuje niczego co pozwalałoby odwzorować HashMap<String, ArrayList<String>>
+-- "lokalnie", w obrębie skryptu, pozostaje więc:
 ALTER TABLE spis_kategorii DROP CONSTRAINT kategoria_a_dzial;
 
 DROP TABLE spis_kategorii;
@@ -65,7 +54,6 @@ CREATE TABLE spis_kategorii (
 ALTER TABLE spis_kategorii ADD CONSTRAINT kategoria_a_dzial
     FOREIGN KEY (id_odpowiadajacego_dzialu)
         REFERENCES spis_dzialow (id) ON DELETE CASCADE;
-
 
 INSERT INTO spis_dzialow (nazwa) VALUES ('AGD');
 INSERT INTO spis_kategorii (nazwa, id_odpowiadajacego_dzialu) VALUES ('lodówki', 1);
@@ -163,8 +151,23 @@ INSERT INTO spis_kategorii (nazwa, id_odpowiadajacego_dzialu) VALUES ('sportowe'
 INSERT INTO spis_kategorii (nazwa, id_odpowiadajacego_dzialu) VALUES ('obuwie męskie', 13);
 INSERT INTO spis_kategorii (nazwa, id_odpowiadajacego_dzialu) VALUES ('obuwie damskie', 13);
 
+-- Działy - samo przepisanie nazw, ale wszystkich i bez powtarzania, inaczej spowoduje to problemy
+-- podczas dopasowania (tabela "dział" generowana skryptem nie będzie użyta, właśnie ze względu na pominięcia i powtórzenia):
+INSERT INTO zbd_staging.dział (nazwa)
+SELECT nazwa
+FROM zbd_source.spis_dzialow;
 
-
+--  Typ/kategoria produktu - powyższe mapowania są konieczne do sensownego przypisania, to informacja której brakuje w tabeli źródłowej
+declare
+  id_dzialu number(12);
+begin
+  for wiersz in (SELECT nazwa FROM zbd_source.typ_produktu) LOOP
     
+    SELECT id_odpowiadajacego_dzialu INTO id_dzialu FROM spis_kategorii
+    WHERE nazwa = wiersz.nazwa;
+     
+    INSERT INTO zbd_staging.kategoria_produktu (id_działu, nazwa)
+    VALUES (id_dzialu, wiersz.nazwa);
     
-    
+  end loop;
+end;

@@ -4,12 +4,16 @@ declare
     l_dzialow number;
     l_kategorii number;
     l_kasjerow number;
+    l_produktow number;
+    l_wpisow_magazynu number;
 begin
     SELECT max(id) INTO l_dostawcow FROM zbd_staging.dostawca;
     SELECT max(id) INTO l_oddzialow FROM zbd_staging.oddział;
     SELECT max(id) INTO l_dzialow FROM zbd_staging.dział;
     SELECT max(id) INTO l_kategorii FROM zbd_staging.kategoria_produktu;
     SELECT max(id) INTO l_kasjerow FROM zbd_staging.pracownik;
+    SELECT max(id) INTO l_produktow FROM zbd_staging.produkt;
+    SELECT max(id) INTO l_wpisow_magazynu FROM zbd_staging.magazyn;
 
     -- Dostawcy - samo przepisanie nazw:
     INSERT INTO zbd_staging.dostawca (id, nazwa)
@@ -187,6 +191,16 @@ begin
 	INSERT INTO zbd_staging.pracownik (id, imię, nazwisko)
 	SELECT id+l_kasjerow, imie, nazwisko
 	FROM zbd_source.kasjer;
+    
+    -- Produkty:
+	INSERT INTO zbd_staging.produkt (id, id_kategorii, nazwa, id_działu)
+	SELECT id+l_produktow, id_typu_produktu, nazwa, id_dzialu
+	FROM zbd_source.produkt;
+    
+    -- Wpisy o stanie magazynu:
+	INSERT INTO zbd_staging.magazyn (id_oddziału, id_produktu, liczba_produktów, czas)
+	SELECT id_oddzialu, id_produktu, liczba_sztuk, aktualny_na
+	FROM zbd_source.obecny_stan_magazynu;
 
 end;
 

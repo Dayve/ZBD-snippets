@@ -106,6 +106,7 @@ CREATE TABLE Sprzedaż (
     Id_Oceny number(1)  NOT NULL,
     Id_Produktu number(6)  NOT NULL,
     Id_Pracownika number(5)  NOT NULL,
+	Numer_transakcji number(16) NOT NULL,
     Liczba_Produktów number(4)  NOT NULL,
     Czas timestamp  NOT NULL,
     Zysk number(5)  NOT NULL,

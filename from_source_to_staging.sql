@@ -6,6 +6,7 @@ declare
     l_kasjerow number;
     l_produktow number;
     l_wpisow_magazynu number;
+    l_reklamacji number;
 begin
     SELECT max(id) INTO l_dostawcow FROM zbd_staging.dostawca;
     SELECT max(id) INTO l_oddzialow FROM zbd_staging.oddział;
@@ -14,6 +15,7 @@ begin
     SELECT max(id) INTO l_kasjerow FROM zbd_staging.pracownik;
     SELECT max(id) INTO l_produktow FROM zbd_staging.produkt;
     SELECT max(id) INTO l_wpisow_magazynu FROM zbd_staging.magazyn;
+    SELECT max(id) INTO l_reklamacji FROM zbd_staging.reklamacja;
 
     -- Dostawcy - samo przepisanie nazw:
     INSERT INTO zbd_staging.dostawca (id, nazwa)
@@ -201,6 +203,36 @@ begin
 	INSERT INTO zbd_staging.magazyn (id_oddziału, id_produktu, liczba_produktów, czas)
 	SELECT id_oddzialu, id_produktu, liczba_sztuk, aktualny_na
 	FROM zbd_source.obecny_stan_magazynu;
+    
+    -- Reklamacje:
+	INSERT INTO zbd_staging.reklamacja (id, powód)
+	SELECT id+l_reklamacji, opis
+	FROM zbd_source.reklamacja;
+    
+    -- Sprzedaż / transakcja / zakup produktu:
+    declare
+	  id_trans number(12);
+      ocena_trans number(2);
+      suma_trans number(8,2);
+      id_kasj number(12);
+      timest date;
+      id_rekl number(12);
+	begin
+	  for wiersz in (SELECT id, liczba_sztuk, id_produktu, id_transakcji from zbd_source.zakup_produktu) LOOP
+      
+        SELECT id, sumaryczna_kwota, id_kasjera, ocena_od_klienta, data_i_godzina INTO id_trans, suma_trans, id_kasj, ocena_trans, timest
+        FROM zbd_source.transakcja  -- może zwrócić wiele wierszy ale min. 1- FIXME składniowe
+		WHERE id = wiersz.id_transakcji;
+        
+        SELECT id INTO id_rekl FROM zbd_source.reklamacja  -- może zwrócić wiele wierszy albo zero - FIXME składniowe
+        WHERE id_zakupu_produktu = wiersz.id;
+        
+        -- Przesunięcia ID do zweryfikowania - TODO:
+		INSERT INTO zbd_staging.sprzedaż (id_reklamacji, id_oceny, id_produktu, id_pracownika, liczba_produktow, czas, zysk)
+		VALUES (id_rekl, -, wiersz.id_produktu, id_kasj, wiersz.liczba_sztuk, timest, -);
+		
+	  end loop;
+	end;
 
 end;
 

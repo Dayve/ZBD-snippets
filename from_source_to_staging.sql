@@ -162,6 +162,17 @@ INSERT INTO spis_kategorii (nazwa, id_odpowiadajacego_dzialu) VALUES ('sportowe'
 INSERT INTO spis_kategorii (nazwa, id_odpowiadajacego_dzialu) VALUES ('obuwie męskie', 13);
 INSERT INTO spis_kategorii (nazwa, id_odpowiadajacego_dzialu) VALUES ('obuwie damskie', 13);
 
+-- Możliwe oceny:
+/*INSERT INTO zbd_staging.ocena_od_klienta (ocena)
+SELECT DISTINCT to_char(ocena_od_klienta)
+FROM zbd_source.transakcja;*/
+-- Powyższa instrukcja może nie być odpowiednia - nie każda z ocen mogła zostać przyznana choć raz, lepiej:
+INSERT INTO ZBD_STAGING.OCENA_OD_KLIENTA (OCENA) VALUES (to_char('1'));
+INSERT INTO ZBD_STAGING.OCENA_OD_KLIENTA (OCENA) VALUES (to_char('2'));
+INSERT INTO ZBD_STAGING.OCENA_OD_KLIENTA (OCENA) VALUES (to_char('3'));
+INSERT INTO ZBD_STAGING.OCENA_OD_KLIENTA (OCENA) VALUES (to_char('4'));
+INSERT INTO ZBD_STAGING.OCENA_OD_KLIENTA (OCENA) VALUES (to_char('5'));
+
 
 DECLARE
     l_dostawcow NUMBER;
@@ -183,6 +194,10 @@ BEGIN
     SELECT max(id) INTO l_reklamacji FROM zbd_staging.reklamacja;
     SELECT max(id) INTO l_ocen FROM zbd_staging.ocena_od_klienta;
     SELECT max(id) INTO l_zamowien FROM zbd_staging.zamówienia;
+    
+    IF l_produktow = NULL THEN
+        l_produktow := 0;
+    END IF;
 
     -- Dostawcy - samo przepisanie nazw:
     INSERT INTO zbd_staging.dostawca (id, nazwa)
@@ -251,20 +266,6 @@ BEGIN
     SELECT id+l_reklamacji, opis
     FROM zbd_source.reklamacja;
     
-    -- Możliwe oceny:
-    INSERT INTO zbd_staging.ocena_od_klienta (ocena)
-    SELECT DISTINCT to_char(ocena_od_klienta)
-    FROM zbd_source.transakcja;
-    
-    INSERT INTO zbd_staging.ocena_od_klienta (ocena)
-    VALUES ('1');
-    INSERT INTO zbd_staging.ocena_od_klienta (ocena)
-    VALUES ('2');
-    INSERT INTO zbd_staging.ocena_od_klienta (ocena)
-    VALUES ('3');
-    INSERT INTO zbd_staging.ocena_od_klienta (ocena)
-    VALUES ('4');
-    
     -- Ceny produktu i promocje:
     FOR wiersz IN (SELECT cena_w_pln, czy_jest_promocyjna, obowiazuje_od, obowiazuje_do, id_produktu FROM zbd_source.obowiazujaca_cena) LOOP
 
@@ -328,7 +329,7 @@ BEGIN
             END;
             
             SELECT id INTO id_oceny_o_danej_wart FROM zbd_staging.ocena_od_klienta
-            WHERE ocena = ocena_trans;
+            WHERE ocena = to_char(ocena_trans);
             
             INSERT INTO zbd_staging.sprzedaż (id_reklamacji, id_oceny, id_produktu, id_pracownika, liczba_produktów, czas, zysk)
             VALUES (id_rekl + l_reklamacji, id_oceny_o_danej_wart + l_ocen, wiersz.id_produktu + l_produktow, id_kasj + l_kasjerow, wiersz.liczba_sztuk, timestamp_transakcji, ObliczZysk(wiersz.id));

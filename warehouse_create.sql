@@ -7,8 +7,8 @@ CREATE TABLE Czas (
     IdCzasu integer  NOT NULL,
     Data date  NOT NULL,
     Godzina integer  NOT NULL,
-    DzienTygodnia enum  NOT NULL,
-    Miesiac enum  NOT NULL,
+    DzienTygodnia varchar2(50)  NOT NULL,
+    Miesiac varchar2(50)  NOT NULL,
     Kwartal integer  NOT NULL,
     Rok integer  NOT NULL,
     CONSTRAINT Czas_pk PRIMARY KEY (IdCzasu)
@@ -65,7 +65,7 @@ CREATE TABLE KategoriaCenowa (
 -- Table: Lokalizacja
 CREATE TABLE Lokalizacja (
     IdLokalizacji integer  NOT NULL,
-    Wojewodztwo enum  NOT NULL,
+    Wojewodztwo varchar2(50)  NOT NULL,
     Miasto varchar2(50)  NOT NULL,
     Oddzial varchar2(50)  NOT NULL,
     CONSTRAINT Lokalizacja_pk PRIMARY KEY (IdLokalizacji)
@@ -134,7 +134,7 @@ ALTER TABLE Fakty_Zamowienia ADD CONSTRAINT Czas_Zamówienia
     REFERENCES Czas (IdCzasu);
 
 -- Reference: Dostawca_Sprzedaż (fakty) (table: Fakty_Sprzedaz)
-ALTER TABLE Fakty_Sprzedaz ADD CONSTRAINT Dostawca_Sprzedaż (fakty)
+ALTER TABLE Fakty_Sprzedaz ADD CONSTRAINT Dostawca_Sprzedaz
     FOREIGN KEY (IdDostawcy)
     REFERENCES Dostawca (IdDostawcy);
 
@@ -159,17 +159,17 @@ ALTER TABLE Fakty_Magazyn ADD CONSTRAINT Produkt_Magazyn
     REFERENCES Produkt (IdProduktu);
 
 -- Reference: PrzedzialKosztuZamowienia_Zamówienia (table: Fakty_Zamowienia)
-ALTER TABLE Fakty_Zamowienia ADD CONSTRAINT PrzedzialKosztuZamowienia_Zamówienia
+ALTER TABLE Fakty_Zamowienia ADD CONSTRAINT PrzedKosztuZam_Zam
     FOREIGN KEY (IdPrzedzialuKosztuZamowienia)
     REFERENCES PrzedzialKosztuZamowienia (IdPrzedzialuKosztuZamowienia);
 
 -- Reference: Sprzedaz (fakty)_Lokalizacja (table: Fakty_Sprzedaz)
-ALTER TABLE Fakty_Sprzedaz ADD CONSTRAINT Sprzedaz (fakty)_Lokalizacja
+ALTER TABLE Fakty_Sprzedaz ADD CONSTRAINT Sprzedaz_Lokalizacja
     FOREIGN KEY (IdLokalizacji)
     REFERENCES Lokalizacja (IdLokalizacji);
 
 -- Reference: Sprzedaż (fakty)_Czas (table: Fakty_Sprzedaz)
-ALTER TABLE Fakty_Sprzedaz ADD CONSTRAINT Sprzedaż (fakty)_Czas
+ALTER TABLE Fakty_Sprzedaz ADD CONSTRAINT Sprzedaż_Czas
     FOREIGN KEY (IdCzasu)
     REFERENCES Czas (IdCzasu);
 

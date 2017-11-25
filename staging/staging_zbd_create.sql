@@ -53,7 +53,7 @@ CREATE TABLE Oddział (
     Nazwa varchar2(50)  NOT NULL,
     Miasto varchar2(25)  NOT NULL,
     Województwo varchar2(50)  NOT NULL,
-	Ulica_i_numer varchar2(50)  NOT NULL,
+    Ulica_i_numer varchar2(50)  NOT NULL,
     CONSTRAINT Oddział_pk PRIMARY KEY (Id)
 ) ;
 
@@ -107,7 +107,7 @@ CREATE TABLE Sprzedaż (
     Id_Oceny number(1)  NOT NULL,
     Id_Produktu number(6)  NOT NULL,
     Id_Pracownika number(5)  NOT NULL,
-	Numer_transakcji number(16) NOT NULL,
+    Numer_transakcji number(16) NOT NULL,
     Liczba_Produktów number(4)  NOT NULL,
     Czas timestamp  NOT NULL,
     Zysk number(5)  NOT NULL,

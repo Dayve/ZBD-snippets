@@ -279,29 +279,29 @@ BEGIN
 
     END LOOP;
 
-	-- Zamówienia:
+    -- Zamówienia:
     DECLARE
-		id_dostawcy_zamowienia number;
-		cena_hurtowa number;
-		id_zamowionego_produktu number;
+        id_dostawcy_zamowienia number;
+        cena_hurtowa number;
+        id_zamowionego_produktu number;
         id_dopisanego_zamowienia number;
-	BEGIN
-		FOR wiersz IN (SELECT id, liczba_sztuk, data_realizacji, id_oddzialu, id_oferty FROM zbd_source.zamowienie) LOOP
+    BEGIN
+        FOR wiersz IN (SELECT id, liczba_sztuk, data_realizacji, id_oddzialu, id_oferty FROM zbd_source.zamowienie) LOOP
 
-			SELECT id_dostawcy, cena_hurtowa_za_sztuke, id_produktu
-			INTO id_dostawcy_zamowienia, cena_hurtowa, id_zamowionego_produktu
-			FROM zbd_source.oferta_dostawcy
-			WHERE id = wiersz.id_oferty;
+            SELECT id_dostawcy, cena_hurtowa_za_sztuke, id_produktu
+            INTO id_dostawcy_zamowienia, cena_hurtowa, id_zamowionego_produktu
+            FROM zbd_source.oferta_dostawcy
+            WHERE id = wiersz.id_oferty;
 
-			INSERT INTO zbd_staging.zamówienia (id_oddziału, id_dostawcy, koszt_zamówienia, data_zamówienia)
-			VALUES (wiersz.id_oddzialu, id_dostawcy_zamowienia, (cena_hurtowa*wiersz.liczba_sztuk), wiersz.data_realizacji)
+            INSERT INTO zbd_staging.zamówienia (id_oddziału, id_dostawcy, koszt_zamówienia, data_zamówienia)
+            VALUES (wiersz.id_oddzialu, id_dostawcy_zamowienia, (cena_hurtowa*wiersz.liczba_sztuk), wiersz.data_realizacji)
             RETURNING zbd_staging.zamówienia.id INTO id_dopisanego_zamowienia;
 
-			INSERT INTO zbd_staging.produkt_zamówienie (id_produktu, id_zamówienia, liczba_sztuk, koszt_zamówienia_sztuki)
-			VALUES (id_zamowionego_produktu, id_dopisanego_zamowienia, wiersz.liczba_sztuk, cena_hurtowa);
+            INSERT INTO zbd_staging.produkt_zamówienie (id_produktu, id_zamówienia, liczba_sztuk, koszt_zamówienia_sztuki)
+            VALUES (id_zamowionego_produktu, id_dopisanego_zamowienia, wiersz.liczba_sztuk, cena_hurtowa);
 
         END LOOP;
-	END;
+    END;
     
     -- Sprzedaż / transakcja / zakup produktu:
     DECLARE

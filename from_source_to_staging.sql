@@ -172,6 +172,7 @@ DECLARE
     l_produktow NUMBER;
     l_reklamacji NUMBER;
     l_ocen NUMBER;
+    l_zamowien NUMBER;
 BEGIN
     SELECT max(id) INTO l_dostawcow FROM zbd_staging.dostawca;
     SELECT max(id) INTO l_oddzialow FROM zbd_staging.oddział;
@@ -181,6 +182,7 @@ BEGIN
     SELECT max(id) INTO l_produktow FROM zbd_staging.produkt;
     SELECT max(id) INTO l_reklamacji FROM zbd_staging.reklamacja;
     SELECT max(id) INTO l_ocen FROM zbd_staging.ocena_od_klienta;
+    SELECT max(id) INTO l_zamowien FROM zbd_staging.zamówienia;
 
     -- Dostawcy - samo przepisanie nazw:
     INSERT INTO zbd_staging.dostawca (id, nazwa)
@@ -254,20 +256,66 @@ BEGIN
     SELECT DISTINCT to_char(ocena_od_klienta)
     FROM zbd_source.transakcja;
     
+    INSERT INTO zbd_staging.ocena_od_klienta (ocena)
+    VALUES ('1');
+    INSERT INTO zbd_staging.ocena_od_klienta (ocena)
+    VALUES ('2');
+    INSERT INTO zbd_staging.ocena_od_klienta (ocena)
+    VALUES ('3');
+    INSERT INTO zbd_staging.ocena_od_klienta (ocena)
+    VALUES ('4');
+    
+    -- Ceny produktu i promocje:
+    FOR wiersz IN (SELECT cena_w_pln, czy_jest_promocyjna, obowiazuje_od, obowiazuje_do, id_produktu FROM zbd_source.obowiazujaca_cena) LOOP
+
+        INSERT INTO zbd_staging.cena_produktu (id_produktu, cena, od, do)
+        VALUES (wiersz.id_produktu, wiersz.cena_w_pln, wiersz.obowiazuje_od, wiersz.obowiazuje_do);
+
+        IF wiersz.czy_jest_promocyjna > 0 THEN
+            INSERT INTO zbd_staging.promocje (id_produktu, obniżka_procentowa, od, do)
+            VALUES (wiersz.id_produktu, NULL, wiersz.obowiazuje_od, wiersz.obowiazuje_do);  -- Informacja o obniżce względem ceny niepromocyjnej jest nieobecna
+        END IF;
+
+    END LOOP;
+
+	-- Zamówienia:
+    DECLARE
+		id_dostawcy_zamowienia number;
+		cena_hurtowa number;
+		id_zamowionego_produktu number;
+        id_dopisanego_zamowienia number;
+	BEGIN
+		FOR wiersz IN (SELECT id, liczba_sztuk, data_realizacji, id_oddzialu, id_oferty FROM zbd_source.zamowienie) LOOP
+
+			SELECT id_dostawcy, cena_hurtowa_za_sztuke, id_produktu
+			INTO id_dostawcy_zamowienia, cena_hurtowa, id_zamowionego_produktu
+			FROM zbd_source.oferta_dostawcy
+			WHERE id = wiersz.id_oferty;
+
+			INSERT INTO zbd_staging.zamówienia (id_oddziału, id_dostawcy, koszt_zamówienia, data_zamówienia)
+			VALUES (wiersz.id_oddzialu, id_dostawcy_zamowienia, (cena_hurtowa*wiersz.liczba_sztuk), wiersz.data_realizacji)
+            RETURNING zbd_staging.zamówienia.id INTO id_dopisanego_zamowienia;
+
+			INSERT INTO zbd_staging.produkt_zamówienie (id_produktu, id_zamówienia, liczba_sztuk, koszt_zamówienia_sztuki)
+			VALUES (id_zamowionego_produktu, id_dopisanego_zamowienia, wiersz.liczba_sztuk, cena_hurtowa);
+
+        END LOOP;
+	END;
+    
     -- Sprzedaż / transakcja / zakup produktu:
     DECLARE
         id_trans NUMBER(12);
         ocena_trans NUMBER(2);
         suma_trans NUMBER(8,2);
         id_kasj NUMBER(12);
-        timest date;
+        timestamp_transakcji date;
         id_oceny_o_danej_wart NUMBER(12);
         id_rekl NUMBER(12);
     BEGIN
         FOR wiersz IN (SELECT id, liczba_sztuk, id_produktu, id_transakcji FROM zbd_source.zakup_produktu) LOOP
             
-            SELECT     id, sumaryczna_kwota, id_kasjera, ocena_od_klienta, data_i_godzina 
-            INTO id_trans,       suma_trans,    id_kasj,      ocena_trans,         timest
+            SELECT     id, sumaryczna_kwota, id_kasjera, ocena_od_klienta,       data_i_godzina 
+            INTO id_trans,       suma_trans,    id_kasj,      ocena_trans, timestamp_transakcji
             FROM zbd_source.transakcja
             WHERE id = wiersz.id_transakcji;
             
@@ -282,9 +330,8 @@ BEGIN
             SELECT id INTO id_oceny_o_danej_wart FROM zbd_staging.ocena_od_klienta
             WHERE ocena = ocena_trans;
             
-            -- Przesunięcia ID do zweryfikowania - TODO:
             INSERT INTO zbd_staging.sprzedaż (id_reklamacji, id_oceny, id_produktu, id_pracownika, liczba_produktów, czas, zysk)
-            VALUES (id_rekl + l_reklamacji, id_oceny_o_danej_wart + l_ocen, wiersz.id_produktu + l_produktow, id_kasj + l_kasjerow, wiersz.liczba_sztuk, timest, ObliczZysk(wiersz.id));
+            VALUES (id_rekl + l_reklamacji, id_oceny_o_danej_wart + l_ocen, wiersz.id_produktu + l_produktow, id_kasj + l_kasjerow, wiersz.liczba_sztuk, timestamp_transakcji, ObliczZysk(wiersz.id));
             
         END LOOP;
     END;

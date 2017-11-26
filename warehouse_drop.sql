@@ -1,5 +1,5 @@
 -- Created by Vertabelo (http://vertabelo.com)
--- Last modification date: 2017-11-25 18:24:48.354
+-- Last modification date: 2017-11-26 11:30:45.515
 
 -- foreign keys
 ALTER TABLE Fakty_Magazyn

@@ -107,6 +107,7 @@ CREATE TABLE Sprzedaż (
     Id_Oceny number(1)  NULL,
     Id_Produktu number(6)  NOT NULL,
     Id_Pracownika number(5)  NOT NULL,
+	Id_Oddziału number(4)  NOT NULL,
     Liczba_Produktów number(4)  NOT NULL,
     Czas timestamp  NOT NULL,
     Zysk number(5)  NOT NULL,
@@ -184,6 +185,11 @@ ALTER TABLE Sprzedaż ADD CONSTRAINT Sprzedaż_Pracownik
 ALTER TABLE Sprzedaż ADD CONSTRAINT Sprzedaż_Produkt
     FOREIGN KEY (Id_Produktu)
     REFERENCES Produkt (Id);
+
+-- Reference: Sprzedaż_Oddział (table: Sprzedaż)
+ALTER TABLE Sprzedaż ADD CONSTRAINT Sprzedaż_Oddział
+    FOREIGN KEY (Id_Oddziału)
+    REFERENCES Oddział (Id);
 
 -- Reference: Sprzedaż_Reklamacja (table: Sprzedaż)
 ALTER TABLE Sprzedaż ADD CONSTRAINT Sprzedaż_Reklamacja

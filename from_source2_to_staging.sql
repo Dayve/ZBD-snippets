@@ -79,7 +79,7 @@ begin
     SELECT id_oddziału, id_produktu, liczba_produktów, czas
     FROM zbd_source2.magazyn;
 	
-    INSERT INTO zbd_staging.sprzedaż (id, id_reklamacji, id_oceny, id_produktu, id_pracownika, liczba_produktów, czas, zysk, numer_transakcji)
-    SELECT id + id_sprzedaży, id_reklamacji, id_oceny, id_produktu, id_pracownika, liczba_produktów, czas, zysk, numer_transakcji
+    INSERT INTO zbd_staging.sprzedaż (id, id_reklamacji, id_oceny, id_produktu, id_pracownika, id_oddziału, liczba_produktów, czas, zysk, numer_transakcji)
+    SELECT id + id_sprzedaży, id_reklamacji, id_oceny, id_produktu, id_pracownika, id_oddziału, liczba_produktów, czas, zysk, numer_transakcji
     FROM zbd_source2.sprzedaż;
 end;

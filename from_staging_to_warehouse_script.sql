@@ -117,7 +117,19 @@ BEGIN
 END;
 /
 
+CREATE OR REPLACE FUNCTION ID_KOSZTU_ZAMOWIENIA
+    (koszt_zamowienia IN NUMBER)
+    RETURN NUMBER
+IS
+    przedzial_kosztu_zamowienia NUMBER;
+BEGIN
 
+    SELECT id INTO przedzial_kosztu_zamowienia FROM zbd_warehouse.przedzial_kosztu_zamowienia
+    WHERE koszt_zamowienia >= zbd_warehouse.przedzial_kosztu_zamowienia.od_PLN AND koszt_zamowienia < zbd_warehouse.przedzial_kosztu_zamowienia.do_PLN;
+
+    RETURN przedzial_kosztu_zamowienia;
+END;
+/
 
 CREATE OR REPLACE FUNCTION DOSTAWCA_DANEGO_PRODUKTU
     (p_id_produktu IN NUMBER)
@@ -179,8 +191,8 @@ IS
     id_dzialu number;
     nazwa_kategorii varchar2(50);
     nazwa_dzialu varchar2(30);
-
     id_nowego_czasu number;
+
 BEGIN
     FOR wiersz IN (SELECT Id_Reklamacji, Id_Oceny, Id_Produktu, Id_Pracownika, Liczba_Produktów, Czas, Zysk, Numer_Transakcji, Id_Oddziału
                    FROM zbd_staging.Sprzedaż) LOOP
@@ -210,5 +222,32 @@ BEGIN
         ID_KATEGORII_CENOWEJ(wiersz.Numer_Transakcji), wiersz.Id_Oceny, DOSTAWCA_DANEGO_PRODUKTU(wiersz.Id_Produktu),
         ZYSK_ZE_SPRZEDAZY(wiersz.Id_Produktu, wiersz.Liczba_Produktów, wiersz.Numer_Transakcji, wiersz.Id_Oddziału), wiersz.Liczba_Produktów);
     END LOOP;
+END;
+
+/-- Zamówienia: TODO
+create or replace PROCEDURE fakty_dla_zamowien
+IS
+	id_typu_produktu number;
+	id_kategorii number;
+	id_dzialu number;
+	nazwa_kategorii varchar2(50);
+	nazwa_dzialu varchar2(30);
+	
+BEGIN
+	FOR wiersz IN (SELECT Id_Oddziału, Id_Dostawcy, Koszt_Zamówienia, Data_Zamówienia, Liczba_Sztuk, Id_Produktu
+	FROM zbd_staging.Zamówienia JOIN zbd_staging.Produkt_Zamówienie ON zbd_staging.Zamówienia.Id = zbd_staging.Produkt_Zamówienie.Id_Zamówienia) LOOP
+	
+		SELECT id_kategorii, id_działu INTO id_kategorii, id_dzialu FROM zbd_staging.Produkt WHERE id = wiersz.Id_Produktu;
+
+        SELECT nazwa INTO nazwa_kategorii FROM zbd_staging.Kategoria_Produktu WHERE id = id_kategorii;
+        SELECT nazwa INTO nazwa_dzialu FROM zbd_staging.Dział WHERE id = id_dzialu;
+
+        SELECT id INTO id_typu_produktu FROM zbd_warehouse.typ_produktu
+        WHERE kategoria_produktu = nazwa_kategorii AND dzial_produktu = nazwa_dzialu;
+
+		INSERT INTO zbd_warehouse.Fakty_Zamowienia (Id_Lokalizacji, Id_Przedzialu_Kosztu, Id_Produktu, Id_Typu_Produktu, Id_Czasu, Id_Dostawcy, Liczba_Sztuk)
+		VALUES (wiersz.Id_Oddziału, ID_KOSZTU_ZAMOWIENIA(wiersz.Koszt_Zamówienia), wiersz.Id_Produktu, id_typu_produktu, DODAJ_CZAS(wiersz.Data_Zamówienia), wiersz.Id_Dostawcy, wiersz.Liczba_Sztuk);
+		
+	END LOOP;
 END;
 /

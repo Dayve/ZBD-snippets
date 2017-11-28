@@ -62,7 +62,7 @@ END;
 /
 
 
-CREATE OR REPLACE FUNCTION ID_PRZEDZIALU_DLA_DANEJ_SPRZEDAZY
+CREATE OR REPLACE FUNCTION ID_PRZEDZIALU_CENY
     (dany_numer_transakcji IN NUMBER)
     RETURN NUMBER
 IS
@@ -84,12 +84,11 @@ BEGIN
 END;
 /
 
-CREATE OR REPLACE FUNCTION ID_KATEGORII_CENOWEJ_DLA_SPRZEDAZY
+CREATE OR REPLACE FUNCTION CENA_PRODUKTU_W_TRANSAKCJI
     (dany_numer_transakcji IN NUMBER)
     RETURN NUMBER
 IS
-    cena_produktu NUMBER;
-    id_kategorii_cenowej NUMBER;
+	cena_produktu NUMBER;
 BEGIN
 	SELECT zbd_staging.cena_produktu.cena INTO cena_produktu
 	FROM zbd_staging.cena_produktu
@@ -97,6 +96,19 @@ BEGIN
 	ON zbd_staging.cena_produktu.id_produktu = zbd_staging.Sprzedaż.id_produktu
 	WHERE zbd_staging.Sprzedaż.czas BETWEEN zbd_staging.cena_produktu.od AND zbd_staging.cena_produktu.do
 	AND zbd_staging.Sprzedaż.numer_transakcji = dany_numer_transakcji;
+	
+	RETURN cena_produktu;
+END;
+/
+
+CREATE OR REPLACE FUNCTION ID_KATEGORII_CENOWEJ
+    (dany_numer_transakcji IN NUMBER)
+    RETURN NUMBER
+IS
+    cena_produktu NUMBER;
+    id_kategorii_cenowej NUMBER;
+BEGIN
+	cena_produktu := CENA_PRODUKTU_W_TRANSAKCJI(dany_numer_transakcji);
 
 	SELECT id INTO id_kategorii_cenowej FROM zbd_warehouse.kategoria_cenowa
 	WHERE cena_produktu >= zbd_warehouse.kategoria_cenowa.od_PLN AND cena_produktu < zbd_warehouse.kategoria_cenowa.do_PLN;
@@ -104,6 +116,7 @@ BEGIN
     RETURN id_kategorii_cenowej;
 END;
 /
+
 
 
 CREATE OR REPLACE FUNCTION DOSTAWCA_DANEGO_PRODUKTU
@@ -123,8 +136,36 @@ BEGIN
 END;
 /
 
+CREATE OR REPLACE FUNCTION ZYSK_ZE_SPRZEDAZY
+    (p_id_produktu IN NUMBER,
+	 p_liczba_produktów IN NUMBER
+	 p_numer_transakcji IN NUMBER)
+    RETURN NUMBER
+IS
+	Liczba_Produktów_Zamówienia NUMBER;
+	Szukany_Koszt_Sztuki NUMBER;
+	
+BEGIN
+	SELECT Liczba_Produktów 
+	INTO Obecna_Liczba_Produktów
+	FROM MAGAZYN
+	WHERE Id_Produktu = p_Id_Produktu
+	AND Id_Oddziału = p_Id_Oddziału
+	ORDER BY date DESC
+	LIMIT 1;
 
--- @WIP TODO
+	FOR wiersz IN (SELECT Id FROM zbd_staging.Zamówienia WHERE Id_Oddziału = 	p_Id_Oddziału ORDER BY Data_Zamówienia DESC) LOOP
+		SELECT Liczba_Sztuk, Koszt_Zamówienia_Sztuki INTO Liczba_Produktów_Zamówienia,
+		Szukany_Koszt_Sztuki FROM Produkt_Zamówienie WHERE Id_Zamówienia = wiersz.Id;
+		
+		Obecna_Liczba_Produktów := Obecna_Liczba_Produktów - Liczba_Produktów_Zamówienia;
+		
+		EXIT WHEN Obecna_Liczba_Produktów <= 0;
+	END LOOP;
+	
+	 return (CENA_PRODUKTU_W_TRANSAKCJI(p_numer_transakcji) - Szukany_Koszt_Sztuki) * p_liczba_produktów;
+END;
+/
 
 -- Sprzedaż:
 CREATE OR REPLACE PROCEDURE fakty_dla_sprzedazy
@@ -159,14 +200,16 @@ BEGIN
 
         id_nowego_czasu := DODAJ_CZAS(wiersz.Czas);
 
-        INSERT INTO zbd_warehouse.Fakty_Sprzedaz (Id_Wielkosci_Transakcji, Id_Reklamacji, Id_Promocji, Id_Pracownika,
-                                                  Id_Produktu, Id_Typu_Produktu, Id_Lokalizacji, Id_Czasu, Id_Kategorii_Cenowej,
-                                                  Id_Oceny, Id_Dostawcy, Zysk, Liczba_Sztuk)
-        VALUES (ID_PRZEDZIALU_DLA_DANEJ_SPRZEDAZY(wiersz.Numer_Transakcji), wiersz.Id_Reklamacji, id_obowiazujacej_promocji, 
-			    wiersz.Id_Pracownika, wiersz.Id_Produktu, id_typu_produktu, wiersz.Id_Oddziału, id_nowego_czasu, 
-				ID_KATEGORII_CENOWEJ_DLA_SPRZEDAZY(wiersz.Numer_Transakcji), wiersz.Id_Oceny, DOSTAWCA_DANEGO_PRODUKTU(wiersz.Id_Produktu),
-			    >>>ZYSK<<<, wiersz.Liczba_Produktów);
+        INSERT INTO zbd_warehouse.Fakty_Sprzedaz 
+		(Id_Wielkosci_Transakcji, Id_Reklamacji, Id_Promocji, Id_Pracownika,
+		  Id_Produktu, Id_Typu_Produktu, Id_Lokalizacji, Id_Czasu, Id_Kategorii_Cenowej,
+		  Id_Oceny, Id_Dostawcy, Zysk, Liczba_Sztuk)
+        VALUES 
+		(ID_PRZEDZIALU_CENY(wiersz.Numer_Transakcji), wiersz.Id_Reklamacji, id_obowiazujacej_promocji, 
+		wiersz.Id_Pracownika, wiersz.Id_Produktu, id_typu_produktu, wiersz.Id_Oddziału, id_nowego_czasu, 
+		ID_KATEGORII_CENOWEJ(wiersz.Numer_Transakcji), wiersz.Id_Oceny, DOSTAWCA_DANEGO_PRODUKTU(wiersz.Id_Produktu),
+		ZYSK_ZE_SPRZEDAZY(wiersz.Id_Produktu, wiersz.Liczba_Produktów, wiersz.Numer_Transakcji), wiersz.Liczba_Produktów);
     END LOOP;
 END;
-
+/
 

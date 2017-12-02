@@ -1,0 +1,6 @@
+magazyn - mała partycja dla danych aktualnych, duża dla starych
+transakcje - 
+zamówienia - 
+
+generowanie statystyk dla partycji:
+ANALYZE TABLE Czas COMPUTE STATISTICS;

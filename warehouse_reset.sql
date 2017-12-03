@@ -104,8 +104,8 @@ Dzien_Tygodnia varchar2(20)  NOT NULL,
 Miesiac integer  NOT NULL,
 Kwartal integer  NOT NULL,
 Rok integer  NOT NULL,
-CONSTRAINT Czas_pk PRIMARY KEY (Id))
-
+CONSTRAINT Czas_pk PRIMARY KEY (Id)
+)
 PARTITION BY LIST (miesiac)
  (
     PARTITION styczen VALUES (1),
@@ -163,7 +163,13 @@ CREATE TABLE Fakty_Sprzedaz (
     Zysk number(7,2)  NOT NULL,
     Liczba_Sztuk integer  NOT NULL,
     CONSTRAINT Fakty_Sprzedaz_pk PRIMARY KEY (Id)
-) ;
+)
+PARTITION BY RANGE (Id_Wielkosci_Transakcji) INTERVAL (1) 
+(
+    PARTITION zero VALUES LESS THAN (1)
+)
+PARALLEL;
+
 
 -- Table: Fakty_Zamowienia
 CREATE TABLE Fakty_Zamowienia (
@@ -176,7 +182,13 @@ CREATE TABLE Fakty_Zamowienia (
     Id_Dostawcy integer  NOT NULL,
     Liczba_Sztuk integer  NOT NULL,
     CONSTRAINT Fakty_Zamowienia_pk PRIMARY KEY (Id)
-) ;
+)
+PARTITION BY RANGE (Id_Lokalizacji) INTERVAL (1)
+( 
+    PARTITION zero VALUES LESS THAN (1)
+)
+PARALLEL;
+
 
 -- Table: Kategoria_Cenowa
 CREATE TABLE Kategoria_Cenowa (
